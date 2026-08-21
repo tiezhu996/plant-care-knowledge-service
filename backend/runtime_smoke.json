@@ -1,0 +1,17 @@
+{
+  "mode": "service",
+  "start": "go run ./cmd/server",
+  "workdir": ".",
+  "env": {
+    "SERVER_PORT": "18080",
+    "DB_HOST": "127.0.0.1",
+    "DB_PORT": "3502",
+    "DB_USER": "gbplantwiki_user",
+    "DB_PASSWORD": "gbplantwiki_pwd",
+    "DB_NAME": "gbplantwiki_db",
+    "UPLOAD_DIR": "/tmp/gbplantwiki_uploads"
+  },
+  "ready_url": "http://127.0.0.1:18080/healthz",
+  "ready_status": [200],
+  "startup_timeout": 30
+}
