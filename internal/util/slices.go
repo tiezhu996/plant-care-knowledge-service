@@ -12,13 +12,16 @@ func FilterInPlace[T any](items []T, keep func(T) bool) []T {
 	return out
 }
 
-// Take returns the first n items by reslicing the input, sharing its backing array.
+// Take returns a copy of the first n items. The result does not share memory
+// with the input, so mutating it cannot corrupt the caller's slice.
 func Take[T any](items []T, n int) []T {
 	if n < 0 {
 		n = 0
 	}
-	if len(items) > n {
-		return items[:n]
+	if n > len(items) {
+		n = len(items)
 	}
-	return items
+	out := make([]T, n)
+	copy(out, items[:n])
+	return out
 }
