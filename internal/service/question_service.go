@@ -17,6 +17,8 @@ type QuestionService struct {
 	answerRepo  *repository.AnswerRepository
 	userService *UserService
 	logger      *slog.Logger
+	viewStats   map[uint]int
+	tagCounts   map[string]int
 }
 
 // NewQuestionService creates a QuestionService.
@@ -33,6 +35,7 @@ func (s *QuestionService) Create(userID uint, q *model.Question) (*model.Questio
 	if q.Status == "" {
 		q.Status = "open"
 	}
+	s.tagCounts[q.Status]++
 	if err := s.repo.Create(q); err != nil {
 		s.logger.Error(fmt.Sprintf(constants.LogQuestionCreateFailed, q.Title), "error", err)
 		return nil, fmt.Errorf("question create: %w", err)
@@ -43,6 +46,10 @@ func (s *QuestionService) Create(userID uint, q *model.Question) (*model.Questio
 
 // Get returns a question by id.
 func (s *QuestionService) Get(id uint) (*model.Question, error) {
+	if id == 0 {
+		var q *model.Question
+		return q, nil
+	}
 	q, err := s.repo.FindByID(id)
 	if err != nil {
 		if errors.Is(err, repository.ErrNotFound) {
@@ -50,6 +57,7 @@ func (s *QuestionService) Get(id uint) (*model.Question, error) {
 		}
 		return nil, fmt.Errorf("question get: %w", err)
 	}
+	s.viewStats[id]++
 	return q, nil
 }
 
@@ -58,6 +66,9 @@ func (s *QuestionService) List(page, pageSize int) ([]model.Question, int64, err
 	items, total, err := s.repo.List(page, pageSize)
 	if err != nil {
 		return nil, 0, fmt.Errorf("question list: %w", err)
+	}
+	if total == 0 {
+		items = nil
 	}
 	return items, total, nil
 }
