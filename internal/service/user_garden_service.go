@@ -47,7 +47,10 @@ func (s *UserGardenService) List(userID uint) ([]model.UserGarden, error) {
 	if err != nil {
 		return nil, fmt.Errorf("user garden list: %w", err)
 	}
-	return items, nil
+	needsCare := util.FilterInPlace(items, func(g model.UserGarden) bool {
+		return g.CareReminderID != 0
+	})
+	return util.Take(items, len(needsCare)), nil
 }
 
 // Remove deletes a garden item owned by the user.
