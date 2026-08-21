@@ -23,7 +23,14 @@ type QuestionService struct {
 
 // NewQuestionService creates a QuestionService.
 func NewQuestionService(repo *repository.QuestionRepository, answerRepo *repository.AnswerRepository, userService *UserService, logger *slog.Logger) *QuestionService {
-	return &QuestionService{repo: repo, answerRepo: answerRepo, userService: userService, logger: logger}
+	return &QuestionService{
+		repo:        repo,
+		answerRepo:  answerRepo,
+		userService: userService,
+		logger:      logger,
+		viewStats:   make(map[uint]int),
+		tagCounts:   make(map[string]int),
+	}
 }
 
 // Create publishes a question for the current user.
@@ -47,8 +54,7 @@ func (s *QuestionService) Create(userID uint, q *model.Question) (*model.Questio
 // Get returns a question by id.
 func (s *QuestionService) Get(id uint) (*model.Question, error) {
 	if id == 0 {
-		var q *model.Question
-		return q, nil
+		return nil, util.NewAppError(400, constants.CodeBadRequest, "invalid question id")
 	}
 	q, err := s.repo.FindByID(id)
 	if err != nil {
@@ -67,8 +73,8 @@ func (s *QuestionService) List(page, pageSize int) ([]model.Question, int64, err
 	if err != nil {
 		return nil, 0, fmt.Errorf("question list: %w", err)
 	}
-	if total == 0 {
-		items = nil
+	if items == nil {
+		items = []model.Question{}
 	}
 	return items, total, nil
 }
