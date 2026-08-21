@@ -20,6 +20,9 @@ var (
 	ErrTokenExpired = errors.New("token expired")
 )
 
+// TokenIssuer identifies this service as the signer of its own tokens.
+const TokenIssuer = "gbplantwiki"
+
 // GenerateToken issues a signed JWT for the given identity.
 func GenerateToken(userID uint, username, role, secret string, expire time.Duration) (string, error) {
 	claims := Claims{
@@ -29,7 +32,7 @@ func GenerateToken(userID uint, username, role, secret string, expire time.Durat
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(expire)),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
-			Issuer:    "gbplantwiki",
+			Issuer:    TokenIssuer,
 		},
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
@@ -37,13 +40,15 @@ func GenerateToken(userID uint, username, role, secret string, expire time.Durat
 }
 
 // ParseToken validates a JWT and returns its claims.
+// The issuer is checked so that a token signed with the same secret but
+// minted by a different issuer is rejected.
 func ParseToken(tokenStr, secret string) (*Claims, error) {
 	token, err := jwt.ParseWithClaims(tokenStr, &Claims{}, func(t *jwt.Token) (interface{}, error) {
 		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, ErrTokenInvalid
 		}
 		return []byte(secret), nil
-	})
+	}, jwt.WithIssuer(TokenIssuer))
 	if err != nil {
 		if errors.Is(err, jwt.ErrTokenExpired) {
 			return nil, ErrTokenExpired

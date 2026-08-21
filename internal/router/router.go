@@ -61,20 +61,21 @@ func Setup(cfg *config.Config, db *gorm.DB, logger *slog.Logger) *gin.Engine {
 	r.GET("/healthz", func(c *gin.Context) { c.JSON(200, dto.OK(gin.H{"status": "ok"})) })
 
 	limiter := middleware.NewRateLimiter(cfg.RateLimitReq, cfg.RateLimitWin)
+	auth := middleware.AuthRequired(cfg, userRepo)
 
 	v1 := r.Group("/api/v1")
 	{
 		v1.GET("/home/overview", homeHandler.Overview)
-		registerUserRoutes(v1, cfg, userHandler, limiter)
-		registerPlantRoutes(v1, cfg, plantHandler, limiter)
-		registerArticleRoutes(v1, cfg, articleHandler, limiter)
-		registerPestRoutes(v1, cfg, pestHandler, limiter)
-		registerReminderRoutes(v1, cfg, reminderHandler, limiter)
-		registerFavoriteRoutes(v1, cfg, favoriteHandler, limiter)
-		registerGardenRoutes(v1, cfg, gardenHandler, limiter)
-		registerQuestionRoutes(v1, cfg, questionHandler, answerHandler, limiter)
-		v1.POST("/uploads", middleware.AuthRequired(cfg), limiter.Limit(), uploadHandler.Upload)
-		v1.PUT("/answers/:id/like", middleware.AuthRequired(cfg), answerHandler.Like)
+		registerUserRoutes(v1, auth, userHandler, limiter)
+		registerPlantRoutes(v1, auth, plantHandler, limiter)
+		registerArticleRoutes(v1, auth, articleHandler, limiter)
+		registerPestRoutes(v1, auth, pestHandler, limiter)
+		registerReminderRoutes(v1, auth, reminderHandler, limiter)
+		registerFavoriteRoutes(v1, auth, favoriteHandler, limiter)
+		registerGardenRoutes(v1, auth, gardenHandler, limiter)
+		registerQuestionRoutes(v1, auth, questionHandler, answerHandler, limiter)
+		v1.POST("/uploads", auth, limiter.Limit(), uploadHandler.Upload)
+		v1.PUT("/answers/:id/like", auth, answerHandler.Like)
 	}
 	return r
 }

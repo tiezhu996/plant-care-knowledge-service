@@ -42,6 +42,18 @@ func (r *UserRepository) FindByUsername(username string) (*model.User, error) {
 	return &u, nil
 }
 
+// FindByEmail locates a user by email, enabling email-based login.
+func (r *UserRepository) FindByEmail(email string) (*model.User, error) {
+	var u model.User
+	if err := r.db.Where("email = ?", email).First(&u).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrNotFound
+		}
+		return nil, err
+	}
+	return &u, nil
+}
+
 // FindByID locates a user by primary key.
 func (r *UserRepository) FindByID(id uint) (*model.User, error) {
 	var u model.User

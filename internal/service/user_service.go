@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net/http"
 
 	"golang.org/x/crypto/bcrypt"
 
@@ -57,14 +58,21 @@ func (s *UserService) Register(username, email, password, nickname string) (*mod
 	return u, token, nil
 }
 
-// Login verifies credentials and issues a JWT.
+// Login verifies credentials and issues a JWT. The identifier may be a
+// username or an email address.
 func (s *UserService) Login(identifier, password string) (*model.User, string, error) {
 	u, err := s.repo.FindByUsername(identifier)
 	if err != nil {
 		if errors.Is(err, repository.ErrNotFound) {
-			return nil, "", util.NewAppError(401, constants.CodeUnauthorized, constants.MsgInvalidCredentials)
+			// Fall back to email lookup so users can sign in with their address.
+			u, err = s.repo.FindByEmail(identifier)
 		}
-		return nil, "", fmt.Errorf("user login find: %w", err)
+		if err != nil {
+			if errors.Is(err, repository.ErrNotFound) {
+				return nil, "", util.NewAppError(401, constants.CodeUnauthorized, constants.MsgInvalidCredentials)
+			}
+			return nil, "", fmt.Errorf("user login find: %w", err)
+		}
 	}
 	if bcrypt.CompareHashAndPassword([]byte(u.PasswordHash), []byte(password)) != nil {
 		s.logger.Warn(constants.LogUserLoginFailed, "username", identifier)
@@ -78,8 +86,13 @@ func (s *UserService) Login(identifier, password string) (*model.User, string, e
 	return u, token, nil
 }
 
-// UpdateProfile updates nickname, bio, avatar and role of a user.
+// UpdateProfile updates nickname, bio and avatar of a user. The role is
+// deliberately immutable here: role assignment is an admin-only concern and
+// must never be driven by self-submitted profile payloads.
 func (s *UserService) UpdateProfile(id uint, nickname, bio, avatar, role string) (*model.User, error) {
+	if role != "" {
+		return nil, util.NewAppError(http.StatusForbidden, constants.CodeForbidden, constants.MsgForbidden)
+	}
 	u, err := s.repo.FindByID(id)
 	if err != nil {
 		return nil, fmt.Errorf("user profile find: %w", err)
@@ -92,9 +105,6 @@ func (s *UserService) UpdateProfile(id uint, nickname, bio, avatar, role string)
 	}
 	if avatar != "" {
 		u.Avatar = avatar
-	}
-	if role != "" {
-		u.Role = role
 	}
 	if err := s.repo.Update(u); err != nil {
 		return nil, fmt.Errorf("user profile update: %w", err)
