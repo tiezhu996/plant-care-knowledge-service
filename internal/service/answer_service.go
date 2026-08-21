@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"sync"
 
 	"gorm.io/gorm"
 
@@ -19,6 +20,7 @@ type AnswerService struct {
 	repo         *repository.AnswerRepository
 	questionRepo *repository.QuestionRepository
 	logger       *slog.Logger
+	mu           sync.Mutex
 	hotLikes     map[uint]int
 }
 
@@ -43,11 +45,18 @@ func (s *AnswerService) Create(userID, questionID uint, content string) (*model.
 	return a, nil
 }
 
-// ListByQuestion returns answers for a question.
+// ListByQuestion returns answers for a question, merged with any buffered hot likes.
 func (s *AnswerService) ListByQuestion(questionID uint) ([]model.Answer, error) {
 	items, err := s.repo.ListByQuestion(questionID)
 	if err != nil {
 		return nil, fmt.Errorf("answer list: %w", err)
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for i := range items {
+		if delta, ok := s.hotLikes[items[i].ID]; ok {
+			items[i].LikeCount += delta
+		}
 	}
 	return items, nil
 }
@@ -103,14 +112,22 @@ func (s *AnswerService) Like(answerID uint) (*model.Answer, error) {
 		}
 		return nil, fmt.Errorf("answer like find: %w", err)
 	}
+	s.mu.Lock()
 	s.hotLikes[answerID]++
+	a.LikeCount += s.hotLikes[answerID]
+	s.mu.Unlock()
 	s.logger.Info(fmt.Sprintf(constants.LogAnswerLikeSuccess, answerID), "id", answerID)
 	return a, nil
 }
 
-// FlushLikes persists every buffered like delta to the store.
+// FlushLikes persists every buffered like delta to the store and clears the buffer
+// so subsequent calls are no-ops until new likes arrive.
 func (s *AnswerService) FlushLikes() error {
-	for id, delta := range s.hotLikes {
+	s.mu.Lock()
+	pending := s.hotLikes
+	s.hotLikes = make(map[uint]int)
+	s.mu.Unlock()
+	for id, delta := range pending {
 		if err := s.repo.ApplyLikeDelta(id, delta); err != nil {
 			return fmt.Errorf("answer like flush: %w", err)
 		}

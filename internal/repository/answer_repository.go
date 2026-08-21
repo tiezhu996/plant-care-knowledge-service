@@ -60,10 +60,10 @@ func (r *AnswerRepository) IncrementLike(id uint) error {
 		UpdateColumn("like_count", gorm.Expr("like_count + 1")).Error
 }
 
-// ApplyLikeDelta overwrites the like count with the buffered delta.
+// ApplyLikeDelta adds the buffered like delta to an reply's like count.
 func (r *AnswerRepository) ApplyLikeDelta(id uint, delta int) error {
 	return r.db.Model(&model.Answer{}).Where("id = ?", id).
-		UpdateColumn("like_count", delta).Error
+		UpdateColumn("like_count", gorm.Expr("like_count + ?", delta)).Error
 }
 
 // ClearBestForQuestion resets best answers for a question.
