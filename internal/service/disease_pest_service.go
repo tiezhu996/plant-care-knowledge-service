@@ -51,7 +51,7 @@ func (s *DiseasePestService) Get(id uint) (*model.DiseasePest, error) {
 func (s *DiseasePestService) Update(id uint, d *model.DiseasePest) (*model.DiseasePest, error) {
 	exist, err := s.repo.FindByID(id)
 	if err != nil {
-		return nil, fmt.Errorf("disease pest update find: %w", err)
+		return nil, fmt.Errorf("disease pest update find: %v", err)
 	}
 	if d.Name != "" {
 		exist.Name = d.Name
@@ -81,7 +81,7 @@ func (s *DiseasePestService) Update(id uint, d *model.DiseasePest) (*model.Disea
 // Delete removes an entry (admin only).
 func (s *DiseasePestService) Delete(id uint) error {
 	if err := s.repo.Delete(id); err != nil {
-		return fmt.Errorf("disease pest delete: %w", err)
+		return fmt.Errorf("disease pest delete: %v", err)
 	}
 	return nil
 }

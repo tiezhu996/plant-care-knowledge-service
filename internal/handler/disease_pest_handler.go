@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"fmt"
 	"log/slog"
 	"net/http"
 	"strconv"
@@ -54,7 +55,7 @@ func (h *DiseasePestHandler) Get(c *gin.Context) {
 	}
 	d, err := h.svc.Get(uint(id))
 	if err != nil {
-		c.Error(err)
+		c.Error(fmt.Errorf("disease pest get failed: %v", err))
 		return
 	}
 	c.JSON(http.StatusOK, dto.OK(d))
