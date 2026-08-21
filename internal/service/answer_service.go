@@ -19,11 +19,12 @@ type AnswerService struct {
 	repo         *repository.AnswerRepository
 	questionRepo *repository.QuestionRepository
 	logger       *slog.Logger
+	hotLikes     map[uint]int
 }
 
 // NewAnswerService creates an AnswerService.
 func NewAnswerService(db *gorm.DB, repo *repository.AnswerRepository, questionRepo *repository.QuestionRepository, logger *slog.Logger) *AnswerService {
-	return &AnswerService{db: db, repo: repo, questionRepo: questionRepo, logger: logger}
+	return &AnswerService{db: db, repo: repo, questionRepo: questionRepo, logger: logger, hotLikes: make(map[uint]int)}
 }
 
 // Create adds an reply to a question.
@@ -93,11 +94,26 @@ func (s *AnswerService) Adopt(userID, questionID, answerID uint) (*model.Answer,
 	return a, nil
 }
 
-// Like increments the like count of an reply.
+// Like buffers a like into the in-memory hot buffer, to be flushed later.
 func (s *AnswerService) Like(answerID uint) (*model.Answer, error) {
-	if err := s.repo.IncrementLike(answerID); err != nil {
-		return nil, fmt.Errorf("answer like: %w", err)
+	a, err := s.repo.FindByID(answerID)
+	if err != nil {
+		if errors.Is(err, repository.ErrNotFound) {
+			return nil, util.NewAppError(404, constants.CodeNotFound, fmt.Sprintf("Answer[id=%d] not found", answerID))
+		}
+		return nil, fmt.Errorf("answer like find: %w", err)
 	}
+	s.hotLikes[answerID]++
 	s.logger.Info(fmt.Sprintf(constants.LogAnswerLikeSuccess, answerID), "id", answerID)
-	return s.repo.FindByID(answerID)
+	return a, nil
+}
+
+// FlushLikes persists every buffered like delta to the store.
+func (s *AnswerService) FlushLikes() error {
+	for id, delta := range s.hotLikes {
+		if err := s.repo.ApplyLikeDelta(id, delta); err != nil {
+			return fmt.Errorf("answer like flush: %w", err)
+		}
+	}
+	return nil
 }
