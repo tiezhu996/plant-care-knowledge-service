@@ -56,7 +56,7 @@ func (h *PlantSpeciesHandler) Get(c *gin.Context) {
 	}
 	p, err := h.svc.Get(uint(id))
 	if err != nil {
-		c.Error(fmt.Errorf("plant get failed: %v", err))
+		c.Error(fmt.Errorf("plant get failed: %w", err))
 		return
 	}
 	c.JSON(http.StatusOK, dto.OK(p))

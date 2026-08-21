@@ -35,9 +35,9 @@ func (r *PlantSpeciesRepository) FindByID(id uint) (*model.PlantSpecies, error) 
 	var p model.PlantSpecies
 	if err := r.db.First(&p, id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, fmt.Errorf("plant species find: %v", ErrNotFound)
+			return nil, fmt.Errorf("plant species find: %w", ErrNotFound)
 		}
-		return nil, fmt.Errorf("plant species find: %v", err)
+		return nil, fmt.Errorf("plant species find: %w", err)
 	}
 	return &p, nil
 }
