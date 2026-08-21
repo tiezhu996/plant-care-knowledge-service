@@ -14,12 +14,12 @@ import (
 
 // CareArticleService implements care article business logic.
 type CareArticleService struct {
-	repo   *repository.CareArticleRepository
-	logger *slog.Logger
-	viewCh chan uint
-	errCh  chan error
-	stopCh chan struct{}
-	wg     sync.WaitGroup
+	repo     *repository.CareArticleRepository
+	logger   *slog.Logger
+	viewCh   chan uint
+	stopCh   chan struct{}
+	flushErr error
+	wg       sync.WaitGroup
 }
 
 // NewCareArticleService creates a CareArticleService.
@@ -58,46 +58,76 @@ func (s *CareArticleService) Get(id uint) (*model.CareArticle, error) {
 	return a, nil
 }
 
-// RecordView queues a view event for the background flusher.
+// RecordView queues a view event for the background flusher. It never blocks
+// the caller: once the flusher has stopped it returns immediately so that an
+// inbound request can never wedge the HTTP handler on a dead worker.
 func (s *CareArticleService) RecordView(id uint) {
-	if s.viewCh == nil {
+	if s.viewCh == nil || s.stopCh == nil {
 		return
 	}
-	s.viewCh <- id
+	select {
+	case s.viewCh <- id:
+	case <-s.stopCh:
+	}
 }
 
 // StartViewFlusher launches the background worker that batches view deltas.
 func (s *CareArticleService) StartViewFlusher() {
-	s.viewCh = make(chan uint)
-	s.errCh = make(chan error)
+	s.viewCh = make(chan uint, 1024)
 	s.stopCh = make(chan struct{})
+	s.wg.Add(1)
 	go s.flushLoop()
 }
 
 func (s *CareArticleService) flushLoop() {
-	s.wg.Add(1)
 	defer s.wg.Done()
 	pending := make(map[uint]int)
 	for {
 		select {
-		case id := <-s.viewCh:
+		case id, ok := <-s.viewCh:
+			if !ok {
+				return
+			}
 			pending[id]++
 		case <-s.stopCh:
-			for id := range pending {
-				if err := s.repo.ApplyViewDelta(id, 1); err != nil {
-					s.errCh <- err
+			// drain any views still queued before the stop, then flush.
+			for {
+				select {
+				case id := <-s.viewCh:
+					pending[id]++
+				default:
+					s.flushErr = s.flushPending(pending)
+					return
 				}
 			}
-			return
 		}
 	}
 }
 
-// StopViewFlusher asks the worker to stop and returns once it has exited.
+// flushPending applies the accumulated view deltas and returns the first error.
+func (s *CareArticleService) flushPending(pending map[uint]int) error {
+	var firstErr error
+	for id, delta := range pending {
+		if err := s.repo.ApplyViewDelta(id, delta); err != nil {
+			if firstErr == nil {
+				firstErr = err
+			}
+			s.logger.Error(fmt.Sprintf(constants.LogArticleViewFlushFailed, id), "error", err)
+		}
+	}
+	return firstErr
+}
+
+// StopViewFlusher asks the worker to stop, flushes pending views, and returns
+// the flush result (if any) once the worker has exited.
 func (s *CareArticleService) StopViewFlusher() error {
-	close(s.stopCh)
+	select {
+	case <-s.stopCh:
+	default:
+		close(s.stopCh)
+	}
 	s.wg.Wait()
-	return nil
+	return s.flushErr
 }
 
 // Update edits an article, verifying ownership.

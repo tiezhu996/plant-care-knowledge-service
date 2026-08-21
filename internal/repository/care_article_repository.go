@@ -53,10 +53,13 @@ func (r *CareArticleRepository) Delete(id uint) error {
 	return nil
 }
 
-// ApplyViewDelta overwrites the view count with the flushed delta.
+// ApplyViewDelta atomically increments the view count by delta inside a single
+// transaction so concurrent flushes never clobber the running total.
 func (r *CareArticleRepository) ApplyViewDelta(id uint, delta int) error {
-	return r.db.Model(&model.CareArticle{}).Where("id = ?", id).
-		UpdateColumn("view_count", delta).Error
+	return r.db.Transaction(func(tx *gorm.DB) error {
+		return tx.Model(&model.CareArticle{}).Where("id = ?", id).
+			UpdateColumn("view_count", gorm.Expr("view_count + ?", delta)).Error
+	})
 }
 
 // List filters articles by topic tag and keyword with pagination.

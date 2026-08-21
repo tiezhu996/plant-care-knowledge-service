@@ -23,6 +23,7 @@ const (
 	LogArticleUpdateSuccess     = "care article updated: id=%d"
 	LogArticleDeleteSuccess     = "care article deleted: id=%d"
 	LogArticleViewIncremented   = "care article view_count incremented: id=%d"
+	LogArticleViewFlushFailed   = "care article view_count flush failed: id=%d"
 	LogPestCreateSuccess        = "disease pest created: name=%s"
 	LogPestCreateFailed         = "disease pest create failed: name=%s"
 	LogPestUpdateFailed         = "disease pest update failed: id=%d"
@@ -45,5 +46,5 @@ const (
 
 // LogTemplateCount returns the number of defined log templates (used by tests).
 func LogTemplateCount() int {
-	return 33
+	return 34
 }
