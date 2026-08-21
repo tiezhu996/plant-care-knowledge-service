@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -58,11 +59,16 @@ func (s *FavoriteService) Remove(userID uint, targetType string, targetID uint) 
 	return nil
 }
 
-// ListByUser returns a user's favorites.
-func (s *FavoriteService) ListByUser(userID uint, targetType string) ([]model.Favorite, error) {
-	items, err := s.repo.ListByUser(userID, targetType)
-	if err != nil {
-		return nil, fmt.Errorf("favorite list: %w", err)
+// ListByUser returns a user's favorites, retrying transient store errors.
+func (s *FavoriteService) ListByUser(ctx context.Context, userID uint, targetType string) ([]model.Favorite, error) {
+	var lastErr error
+	for attempt := 0; attempt < 3; attempt++ {
+		items, err := s.repo.ListByUser(ctx, userID, targetType)
+		if err == nil {
+			return items, nil
+		}
+		lastErr = err
+		ctx = context.Background()
 	}
-	return items, nil
+	return nil, fmt.Errorf("favorite list: %w", lastErr)
 }
