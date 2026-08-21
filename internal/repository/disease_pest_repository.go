@@ -2,7 +2,6 @@ package repository
 
 import (
 	"errors"
-	"fmt"
 
 	"gorm.io/gorm"
 
@@ -29,9 +28,9 @@ func (r *DiseasePestRepository) FindByID(id uint) (*model.DiseasePest, error) {
 	var d model.DiseasePest
 	if err := r.db.First(&d, id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, fmt.Errorf("disease pest find: %v", ErrNotFound)
+			return nil, ErrNotFound
 		}
-		return nil, fmt.Errorf("disease pest find: %v", err)
+		return nil, err
 	}
 	return &d, nil
 }
