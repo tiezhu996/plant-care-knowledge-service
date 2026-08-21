@@ -67,8 +67,13 @@ func (s *FavoriteService) ListByUser(ctx context.Context, userID uint, targetTyp
 		if err == nil {
 			return items, nil
 		}
+		// A canceled context is not a transient store error: stop retrying so
+		// client aborts/timeouts surface promptly instead of masking the
+		// failure behind fresh background contexts.
+		if ctx.Err() != nil {
+			return nil, err
+		}
 		lastErr = err
-		ctx = context.Background()
 	}
 	return nil, fmt.Errorf("favorite list: %w", lastErr)
 }

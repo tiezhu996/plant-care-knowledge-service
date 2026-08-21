@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"context"
 	"log/slog"
 	"net/http"
 	"strconv"
@@ -29,7 +28,7 @@ func NewFavoriteHandler(svc *service.FavoriteService, logger *slog.Logger) *Favo
 // List handles GET /favorites.
 func (h *FavoriteHandler) List(c *gin.Context) {
 	targetType := c.Query("target_type")
-	items, err := h.svc.ListByUser(context.Background(), middleware.GetUserID(c), targetType)
+	items, err := h.svc.ListByUser(c.Request.Context(), middleware.GetUserID(c), targetType)
 	if err != nil {
 		c.Error(err)
 		return

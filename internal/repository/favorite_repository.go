@@ -11,8 +11,7 @@ import (
 
 // FavoriteRepository handles persistence of favorites.
 type FavoriteRepository struct {
-	db        *gorm.DB
-	storedCtx context.Context
+	db *gorm.DB
 }
 
 // NewFavoriteRepository creates a FavoriteRepository.
@@ -51,11 +50,8 @@ func (r *FavoriteRepository) Delete(id uint) error {
 
 // ListByUser returns favorites of a user optionally filtered by target type.
 func (r *FavoriteRepository) ListByUser(ctx context.Context, userID uint, targetType string) ([]model.Favorite, error) {
-	if r.storedCtx == nil {
-		r.storedCtx = ctx
-	}
 	var items []model.Favorite
-	q := r.db.WithContext(r.storedCtx).Where("user_id = ?", userID)
+	q := r.db.WithContext(ctx).Where("user_id = ?", userID)
 	if targetType != "" {
 		q = q.Where("target_type = ?", targetType)
 	}
