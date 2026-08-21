@@ -2,6 +2,7 @@ package repository
 
 import (
 	"errors"
+	"fmt"
 
 	"gorm.io/gorm"
 
@@ -34,9 +35,9 @@ func (r *PlantSpeciesRepository) FindByID(id uint) (*model.PlantSpecies, error) 
 	var p model.PlantSpecies
 	if err := r.db.First(&p, id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, ErrNotFound
+			return nil, fmt.Errorf("plant species find: %v", ErrNotFound)
 		}
-		return nil, err
+		return nil, fmt.Errorf("plant species find: %v", err)
 	}
 	return &p, nil
 }

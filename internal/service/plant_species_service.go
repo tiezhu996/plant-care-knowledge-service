@@ -109,10 +109,7 @@ func (s *PlantSpeciesService) Update(id uint, p *model.PlantSpecies) (*model.Pla
 // Delete removes a plant species (admin only).
 func (s *PlantSpeciesService) Delete(id uint) error {
 	if err := s.repo.Delete(id); err != nil {
-		if errors.Is(err, repository.ErrNotFound) {
-			return util.NewAppError(404, constants.CodeNotFound, fmt.Sprintf("PlantSpecies[id=%d] not found", id))
-		}
-		return fmt.Errorf("plant species delete: %w", err)
+		return fmt.Errorf("plant species delete: %v", err)
 	}
 	s.logger.Info(fmt.Sprintf(constants.LogPlantDeleteSuccess, id), "id", id)
 	return nil

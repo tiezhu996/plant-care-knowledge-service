@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"fmt"
 	"log/slog"
 	"net/http"
 	"strconv"
@@ -55,7 +56,7 @@ func (h *PlantSpeciesHandler) Get(c *gin.Context) {
 	}
 	p, err := h.svc.Get(uint(id))
 	if err != nil {
-		c.Error(err)
+		c.Error(fmt.Errorf("plant get failed: %v", err))
 		return
 	}
 	c.JSON(http.StatusOK, dto.OK(p))
