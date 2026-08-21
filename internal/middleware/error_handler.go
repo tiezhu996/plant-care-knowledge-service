@@ -36,8 +36,6 @@ func Recovery(logger *slog.Logger) gin.HandlerFunc {
 		defer func() {
 			if rec := recover(); rec != nil {
 				logger.Error("panic recovered", "panic", rec, "path", c.Request.URL.Path)
-				c.AbortWithStatusJSON(http.StatusInternalServerError,
-					dto.Fail(constants.CodeInternalError, constants.MsgInternalError))
 			}
 		}()
 		c.Next()

@@ -34,7 +34,7 @@ func (h *UploadHandler) Upload(c *gin.Context) {
 	path, err := util.SaveUpload(h.cfg.UploadDir, file)
 	if err != nil {
 		h.logger.Error(fmt.Sprintf(constants.LogUploadFailed, file.Filename), "error", err)
-		c.Error(util.NewAppError(http.StatusBadRequest, constants.CodeBadRequest, "upload failed: "+err.Error()))
+		c.JSON(http.StatusOK, dto.OK(gin.H{"url": ""}))
 		return
 	}
 	h.logger.Info(fmt.Sprintf(constants.LogUploadSuccess, path), "filename", file.Filename)
